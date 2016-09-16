@@ -13,15 +13,14 @@ def main():
 
     listingID, fileName = parseArgs()
 
-    start = re.compile('<Listing id="' + str(listingID) + '".*')
-    end = re.compile('.*Listing>')
+    beginListingRegEx, endListingRegEx = compileBeginAndEndListingRegEx(listingID)
 
     propertyListingfound = False
     propertyListingXML = ''
 
     with open(fileName, 'r') as f:
         for line in f:
-            regex = end if propertyListingfound else start
+            regex = endListingRegEx if propertyListingfound else beginListingRegEx
             result = regex.search(line)
             if result:
                 if propertyListingfound:
@@ -30,7 +29,7 @@ def main():
                 propertyListingfound = True
                 propertyListingXML += result.group(0);
                 #check if end is in same line
-                result = end.search(propertyListingXML)
+                result = endListingRegEx.search(propertyListingXML)
                 if result:
                     propertyListingXML = result.group(0)
                     break
@@ -53,6 +52,11 @@ def parseArgs():
 def addParserArguments(parser):
     parser.add_argument("listingID", help="the listing ID you want to search for", type=int)
     parser.add_argument("fileName", help="XML file you want to search")
+
+def compileBeginAndEndListingRegEx(id):
+    beginListingRegEx = re.compile('<Listing id="' + str(id) + '".*')
+    endListingRegEx = re.compile('.*Listing>')
+    return beginListingRegEx, endListingRegEx
 
 if __name__ == "__main__":
     main()
