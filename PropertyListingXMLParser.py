@@ -2,46 +2,28 @@ import re
 import sys
 import argparse
 
-#This program will take as input a properyt ID and
-#a xml file to look through. The output is either
-#nothing if the property ID is not found or an XML
-#file holding the contents of the property ID.
+# This program will take as input a listing ID and
+# a xml file to look through. The output is either
+# nothing if the listing ID is not found or an XML
+# file holding the contents of the listing ID.
 
-#python xmlparse.py 2082996 hotpads_rentlinx.xml
+# The parsing of the XML was done this way because
+# regular XML parsing was too slow for very large
+# files (>500mb). By parsing just the specific text
+# it is much faster.
+
+# python xmlparse.py 123 listings.xml
 
 def main():
 
     listingID, fileName = parseArgs()
 
-    beginListingRegEx, endListingRegEx = compileBeginAndEndListingRegEx(listingID)
+    specificListingXML = parseFileForListingId(listingID, fileName)
 
-    propertyListingfound = False
-    propertyListingXML = ''
-
-    with open(fileName, 'r') as f:
-        for line in f:
-            regex = endListingRegEx if propertyListingfound else beginListingRegEx
-            result = regex.search(line)
-            if result:
-                if propertyListingfound:
-                    propertyListingXML += result.group(0)
-                    break
-                propertyListingfound = True
-                propertyListingXML += result.group(0);
-                #check if end is in same line
-                result = endListingRegEx.search(propertyListingXML)
-                if result:
-                    propertyListingXML = result.group(0)
-                    break
-            elif propertyListingfound:
-                propertyListingXML += line
-
-    if propertyListingXML:
-        with open(str(listingID) + '.xml', 'w') as f:
-            f.write(propertyListingXML)
-        print("Output file: " + str(listingID) + ".xml")
+    if specificListingXML:
+        writeOutputToFile(listingID, specificListingXML)
     else:
-        print("Could not find property")
+        print("Could not find listing " + str(listingID) + " in " + fileName)
 
 def parseArgs():
     parser = argparse.ArgumentParser()
@@ -53,10 +35,39 @@ def addParserArguments(parser):
     parser.add_argument("listingID", help="the listing ID you want to search for", type=int)
     parser.add_argument("fileName", help="XML file you want to search")
 
+def parseFileForListingId(listingID, fileName):
+    beginListingRegEx, endListingRegEx = compileBeginAndEndListingRegEx(listingID)
+    currentRegEx = beginListingRegEx
+    specificListingXML = ''
+
+    with open(fileName, 'r') as fileToParse:
+        for line in fileToParse:
+            regExResult = currentRegEx.search(line)
+            if regExResult:
+                if specificListingXML:
+                    specificListingXML += regExResult.group(0)
+                    break
+                currentRegEx = endListingRegEx
+                specificListingXML += regExResult.group(0);
+                regExResult = endListingRegEx.search(specificListingXML)
+                if regExResult: # check if end is in same line
+                    specificListingXML = regExResult.group(0)
+                    break
+            elif specificListingXML:
+                specificListingXML += line
+
+    return specificListingXML
+
 def compileBeginAndEndListingRegEx(id):
     beginListingRegEx = re.compile('<Listing id="' + str(id) + '".*')
     endListingRegEx = re.compile('.*Listing>')
     return beginListingRegEx, endListingRegEx
+
+def writeOutputToFile(listingID, specificListingXML):
+    outputFileName = str(listingID) + '.xml'
+    with open(outputFileName, 'w') as outputFile:
+        outputFile.write(specificListingXML)
+    print("Found listing " + str(listingID) + ", output file: " + outputFileName)
 
 if __name__ == "__main__":
     main()
