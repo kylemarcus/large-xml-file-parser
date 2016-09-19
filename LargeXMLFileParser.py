@@ -17,19 +17,17 @@ By parsing just the specific text it is much faster.
 The search element is pretty specific to the below example
 but could easily be modified to look for something else.
 
-python PropertyListingXMLParser.py '<Listing id="1130"' listings.xml out.xml
+python LargeXMLFileParser.py '<Listing id="1130"' listings.xml out.xml
 '''
 
 def main():
-
     searchElement, inputFilename, outputFilename = parseArgs()
-
     extractedElement = parseFileForElement(searchElement, inputFilename)
 
     if extractedElement:
         writeExtractedElementToFile(extractedElement, outputFilename)
     else:
-        print("Could not element '" + searchElement + "' in " + inputFilename)
+        print "Could not find element", searchElement, "in", inputFilename
         exit(1)
 
 def parseArgs():
@@ -55,12 +53,12 @@ def parseFileForElement(searchElement, fileName):
             if (startIndex >= 0 and endIndex >= 0): # same line
                 extractedElement = line[startIndex:endIndex]
                 break
-            elif (startIndex >= 0): # start of listing
+            elif (startIndex >= 0): # start of element
                 extractedElement = line[startIndex:]
-            elif (endIndex >= 0 and extractedElement): # end of listing
+            elif (endIndex >= 0 and extractedElement): # end of element
                 extractedElement += line[:endIndex] + endSearchStr
                 break;
-            elif (extractedElement): # continuation of found line
+            elif (extractedElement): # continuation of found element
                 extractedElement += line
 
     return extractedElement
@@ -69,7 +67,7 @@ def writeExtractedElementToFile(extractedElement, outputFilename):
     with open(outputFilename, 'w') as outputFile:
         parsedXML = xml.dom.minidom.parseString(extractedElement)
         outputFile.write(parsedXML.toprettyxml())
-    print("Found element, output file: " + outputFilename)
+    print "Found element, output file:", outputFilename
 
 if __name__ == "__main__":
     main()
