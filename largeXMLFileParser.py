@@ -17,7 +17,7 @@ By parsing just the specific text it is much faster.
 The search element is pretty specific to the below example
 but could easily be modified to look for something else.
 
-python LargeXMLFileParser.py '<Listing id="1130"' listings.xml out.xml
+python largeXMLFileParser.py '<Listing id="1130"' listings.xml out.xml
 '''
 
 def main():
