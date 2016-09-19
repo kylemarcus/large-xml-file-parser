@@ -1,73 +1,75 @@
 import re
 import sys
 import argparse
+import xml.dom.minidom
 
-# This program will take as input a listing ID and
-# a xml file to look through. The output is either
-# nothing if the listing ID is not found or an XML
-# file holding the contents of the listing ID.
+'''
+This program will take as input a starting XML element
+to search for and a xml file to look through along with
+a output filename. The output is either nothing if the 
+element is not found or an XML file holding the contents 
+of the found element.
 
-# The parsing of the XML was done this way because
-# regular XML parsing was too slow for very large
-# files (>500mb). By parsing just the specific text
-# it is much faster.
+The parsing of the XML was done this way because regular 
+XML parsing was too slow for very large files (>500mb). 
+By parsing just the specific text it is much faster.
 
-# python xmlparse.py 123 listings.xml
+The search element is pretty specific to the below example
+but could easily be modified to look for something else.
+
+python PropertyListingXMLParser.py '<Listing id="1130"' listings.xml out.xml
+'''
 
 def main():
 
-    listingID, fileName = parseArgs()
+    searchElement, inputFilename, outputFilename = parseArgs()
 
-    specificListingXML = parseFileForListingId(listingID, fileName)
+    extractedElement = parseFileForElement(searchElement, inputFilename)
 
-    if specificListingXML:
-        writeOutputToFile(listingID, specificListingXML)
+    if extractedElement:
+        writeExtractedElementToFile(extractedElement, outputFilename)
     else:
-        print("Could not find listing " + str(listingID) + " in " + fileName)
+        print("Could not element '" + searchElement + "' in " + inputFilename)
+        exit(1)
 
 def parseArgs():
     parser = argparse.ArgumentParser()
     addParserArguments(parser)
     args = parser.parse_args()
-    return args.listingID, args.fileName
+    return args.searchElement, args.inputFilename, args.outputFilename
 
 def addParserArguments(parser):
-    parser.add_argument("listingID", help="the listing ID you want to search for", type=int)
-    parser.add_argument("fileName", help="XML file you want to search")
+    parser.add_argument("searchElement", help="The starting xml tag to search for")
+    parser.add_argument("inputFilename", help="XML file you want to search")
+    parser.add_argument("outputFilename", help="output filename")
 
-def parseFileForListingId(listingID, fileName):
-    beginListingRegEx, endListingRegEx = compileBeginAndEndListingRegEx(listingID)
-    currentRegEx = beginListingRegEx
-    specificListingXML = ''
+def parseFileForElement(searchElement, fileName):
+    extractedElement = ""
+    startSearchStr = searchElement
+    endSearchStr = "</" + searchElement.split(" ")[0][1:] + ">"
 
     with open(fileName, 'r') as fileToParse:
         for line in fileToParse:
-            regExResult = currentRegEx.search(line)
-            if regExResult:
-                if specificListingXML:
-                    specificListingXML += regExResult.group(0)
-                    break
-                currentRegEx = endListingRegEx
-                specificListingXML += regExResult.group(0);
-                regExResult = endListingRegEx.search(specificListingXML)
-                if regExResult: # check if end is in same line
-                    specificListingXML = regExResult.group(0)
-                    break
-            elif specificListingXML:
-                specificListingXML += line
+            startIndex = line.find(startSearchStr)
+            endIndex = line.find(endSearchStr)
+            if (startIndex >= 0 and endIndex >= 0): # same line
+                extractedElement = line[startIndex:endIndex]
+                break
+            elif (startIndex >= 0): # start of listing
+                extractedElement = line[startIndex:]
+            elif (endIndex >= 0 and extractedElement): # end of listing
+                extractedElement += line[:endIndex] + endSearchStr
+                break;
+            elif (extractedElement): # continuation of found line
+                extractedElement += line
 
-    return specificListingXML
+    return extractedElement
 
-def compileBeginAndEndListingRegEx(id):
-    beginListingRegEx = re.compile('<Listing id="' + str(id) + '".*')
-    endListingRegEx = re.compile('.*Listing>')
-    return beginListingRegEx, endListingRegEx
-
-def writeOutputToFile(listingID, specificListingXML):
-    outputFileName = str(listingID) + '.xml'
-    with open(outputFileName, 'w') as outputFile:
-        outputFile.write(specificListingXML)
-    print("Found listing " + str(listingID) + ", output file: " + outputFileName)
+def writeExtractedElementToFile(extractedElement, outputFilename):
+    with open(outputFilename, 'w') as outputFile:
+        parsedXML = xml.dom.minidom.parseString(extractedElement)
+        outputFile.write(parsedXML.toprettyxml())
+    print("Found element, output file: " + outputFilename)
 
 if __name__ == "__main__":
     main()
